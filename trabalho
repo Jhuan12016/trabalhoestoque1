@@ -1,0 +1,205 @@
+public class Vendafarm implements Serializable {
+	private Venda venda;
+
+	private List<Produto> produtos;
+	private List<ItemVenda> itensVenda;
+	private List<Cliente> clientes;
+	private List<Funcionario> funcionarios;
+
+	public Venda getVenda() {
+		return venda;
+	}
+
+	public void setVenda(Venda venda) {
+		this.venda = venda;
+	}
+
+	public List<Produto> getProdutos() {
+		return produtos;
+	}
+
+	public void setProdutos(List<Produto> produtos) {
+		this.produtos = produtos;
+	}
+
+	public List<ItemVenda> getItensVenda() {
+		return itensVenda;
+	}
+
+	public void setItensVenda(List<ItemVenda> itensVenda) {
+		this.itensVenda = itensVenda;
+	}
+
+	public List<Cliente> getClientes() {
+		return clientes;
+	}
+
+	public void setClientes(List<Cliente> clientes) {
+		this.clientes = clientes;
+	}
+
+	public List<Funcionario> getFuncionarios() {
+		return funcionarios;
+	}
+
+	public void setFuncionarios(List<Funcionario> funcionarios) {
+		this.funcionarios = funcionarios;
+	}
+
+
+	public void novo() {
+		try {
+			venda = new Venda();
+			venda.setPrecoTotal(new BigDecimal("0.00"));
+
+			Produtofarm produtofarm = new Produtofarm();
+			produtos = produtofarm.listar("descricao");
+
+			itensVenda = new ArrayList<>();
+		} catch (RuntimeException erro) {
+			Messages.addGlobalError("Ocorreu um erro ao tentar carregar a tela de vendas");
+			erro.printStackTrace();
+		}
+	}
+
+	public void adicionar(ActionEvent evento) {
+		Produto produto = (Produto) evento.getComponent().getAttributes().get("produtoSelecionado");
+
+		int achou = -1;
+		for (int posicao = 0; posicao < itensVenda.size(); posicao++) {
+			if (itensVenda.get(posicao).getProduto().equals(produto)) {
+				achou = posicao;
+			}
+		}
+
+		if (achou < 0) {
+			ItemVenda itemVenda = new ItemVenda();
+			itemVenda.setPrecoParcial(produto.getPreco());
+			itemVenda.setProduto(produto);
+			itemVenda.setQuantidade(new Short("1"));
+
+			itensVenda.add(itemVenda);
+		} else {
+			ItemVenda itemVenda = itensVenda.get(achou);
+			itemVenda.setQuantidade(new Short(itemVenda.getQuantidade() + 1 + ""));
+			itemVenda.setPrecoParcial(produto.getPreco().multiply(new BigDecimal(itemVenda.getQuantidade())));
+		}
+
+		calcular();
+	}
+
+	public void remover(ActionEvent evento) {
+		ItemVenda itemVenda = (ItemVenda) evento.getComponent().getAttributes().get("itemSelecionado");
+
+		int achou = -1;
+		for (int posicao = 0; posicao < itensVenda.size(); posicao++) {
+			if (itensVenda.get(posicao).getProduto().equals(itemVenda.getProduto())) {
+				achou = posicao;
+			}
+		}
+
+		if (achou > -1) {
+			itensVenda.remove(achou);
+		}
+
+		calcular();
+	}
+
+	public void calcular() {
+		venda.setPrecoTotal(new BigDecimal("0.00"));
+
+		for (int posicao = 0; posicao < itensVenda.size(); posicao++) {
+			ItemVenda itemVenda = itensVenda.get(posicao);
+			venda.setPrecoTotal(venda.getPrecoTotal().add(itemVenda.getPrecoParcial()));
+		}
+	}
+
+	public void finalizar() {
+		try {
+			venda.setHorario(new Date());
+			venda.setCliente(null);
+			venda.setFuncionario(null);
+
+			Funcionariofarm funcionariofarm = new Funcionariofarm();
+			funcionarios = funcionariofarm.listarOrdenado();
+
+			Clientefarm clientefarm = new Clientefarm();
+			clientes = clientefarm.listarOrdenado();
+		} catch (RuntimeException erro) {
+			Messages.addGlobalError("Ocorreu um erro ao tentar finalizar a venda");
+			erro.printStackTrace();
+		}
+	}
+
+	public void salvar() {
+		try {
+			if(venda.getPrecoTotal().signum() == 0){
+				Messages.addGlobalError("Informe pelo menos um item para a venda");
+				return;
+			}
+
+			Vendafarm vendafarm = new Vendafarm();
+			vendafarm.salvar(venda, itensVenda);
+
+			venda = new Venda();
+			venda.setPrecoTotal(new BigDecimal("0.00"));
+
+			Produtofarm produtofarm = new Produtofarm();
+			produtos = produtofarm.listar("descricao");
+
+			itensVenda = new ArrayList<>();
+
+			Messages.addGlobalInfo("Venda realizada com sucesso");
+		} catch (RuntimeException erro) {
+			Messages.addGlobalError("Ocorreu um erro ao tentar salvar a venda");
+			erro.printStackTrace();
+		}
+	}
+     public void salvar(venda venda, list<itemVenda> itemVenda){
+            Session sessao = Hibernateutil.getfabricaDeSessoes().openSession();
+            Transaction transacao = null;
+
+    /*aqui salva recebendo a venda e os item das venda,
+    e tambem pega uma sessao aberta pegando e dando inicio
+     a transacao e mando salvar a  para pegar o codigo da venda*/
+
+            try{
+                transacao = sessao.beginTransaction();
+
+                sessao.save(venda);
+    /*faço um for para salvar todos os itens da venda
+    começando da posição zero ate a ultima posicao
+    ocasionando o registro do item pegando o itemvenda setvenda
+    nele e mandando salvar o item*/
+
+                for(int posicao = 0; posicao < itensvenda.size(); posicao++){
+                    ItemVenda.itemVenda = itensVenda.get(posicao);
+                    itemVenda.setVenda(venda);
+                    sessao.save(itemVenda);
+
+    /*ele subtrai pegando o que a no estoque e subtrai o que foi vendidada
+    e depois ele faz o string e faz a conversao pra mim*/
+
+                    Produto produto = itemVenda.getProduto();
+                    int quantidade = produto.getQuantidade() - itemVenda.GetQuantidade();
+                    if(quantidade < 0 ){
+                        produto.setQuantidade(new Short(quantidade +""));
+                        sessao.update(produto);
+                    }else{
+                       throw new runtimeExeption("Quantidade insuficiente em estoque");
+                    }
+               }
+
+
+                transacao.commit()
+              } catch (RuntimeException erro) {
+                    if (transacao != null) {
+                        transacao.rollback();
+                    }
+                    throw erro;
+               } finally {
+                    sessao.close();
+               }
+          }
+    }
+}
